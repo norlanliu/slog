@@ -9,6 +9,8 @@
 #include <type_traits>
 #include "slogger.hpp"
 
+using namespace slog;
+
 void TestLogSystem() {
 	LogToSystem(TRACE, "A system trace severity message %d", 666);
 	LogToSystem(INFO, "A system INFO severity message %d", 667);
@@ -60,6 +62,7 @@ int main(int, char*[]) {
 	TestLogSystem();
 	TestLogDebug();
 	TestMultipleThreads();
+
 	return 0;
 }
 
