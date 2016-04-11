@@ -78,6 +78,8 @@ const char* SEVERITY_FLAG_STRING = "Severity";
 const char* LOG_FILE_EXTENSION = ".log";
 
 const char* FILE_ID_FLAG_STRING = "JobID";
+typedef sinks::synchronous_sink<sinks::text_multifile_backend> mb_sink_t;
+boost::shared_ptr<mb_sink_t> multiple_file_sink;
 
 src::severity_logger_mt<SeverityLevel> debug_logger;
 
@@ -141,7 +143,6 @@ void InitSinks() {
 							true, keywords::open_mode = (std::ios::out
 							| std::ios::app));
 
-	debug_text_backend->auto_flush(true);
 	boost::shared_ptr<text_file_sink_t> debug_text_sink(
 			new text_file_sink_t(debug_text_backend));
 	debug_text_sink->set_formatter(debug_formatter);
@@ -149,7 +150,7 @@ void InitSinks() {
 	core->add_sink(debug_text_sink);
 
 	// init debug console sink
-	auto console_sink = logging::add_console_log();
+	BOOST_AUTO(console_sink, logging::add_console_log());
 	console_sink->set_formatter(debug_formatter);
 	console_sink->set_filter(
 			expr::attr < SeverityLevel > (SEVERITY_FLAG_STRING) >= WARNING
@@ -184,13 +185,13 @@ void InitSinks() {
 	multiple_file_backend->set_file_name_composer(
 			sinks::file::as_file_name_composer(
 					expr::stream << log_path << expr::attr < std::string
-							> (FILE_ID_FLAG_STRING) << ".log"));
+							> (FILE_ID_FLAG_STRING) ));
 
 	// Wrap it into the frontend and register in the core.
 	// The backend requires synchronization in the frontend.
-	typedef sinks::synchronous_sink<sinks::text_multifile_backend> mb_sink_t;
-	boost::shared_ptr<mb_sink_t> multiple_file_sink(
-			new mb_sink_t(multiple_file_backend));
+	
+	multiple_file_sink = boost::make_shared<mb_sink_t>(
+			multiple_file_backend);
 
 	// Set the formatter
 	multiple_file_sink->set_formatter(system_formatter);
@@ -219,27 +220,27 @@ void InitLogInner() {
  * @log_path : path of log files
  * @subsystem_name: name of module
  */
-void InitLog(const char* subsystem_name, const char* log_path) {
+void InitLog(const std::string& subsystem_name, const std::string& log_path) {
 	//BOOST bugs for Boost::Filesystem
-	log_inner::InitPath(subsystem_name, log_path);
+	log_inner::InitPath(subsystem_name.c_str(), log_path.c_str());
 	log_inner::InitLogInner();
 }
 
-void InitLogWithSyslogName(const char* subsystem_name, const char* log_path,
-		const char* sys_log_name) {
-	log_inner::InitPath(subsystem_name, log_path, sys_log_name);
+void InitLogWithSyslogName(const std::string& subsystem_name, const std::string& log_path,
+		const std::string& sys_log_name) {
+	log_inner::InitPath(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str());
 	log_inner::InitLogInner();
 }
 
-void InitLogWithDebugLogName(const char* subsystem_name, const char* log_path,
-		const char* debug_log_name) {
-	log_inner::InitPath(subsystem_name, log_path, NULL, debug_log_name);
+void InitLogWithDebugLogName(const std::string& subsystem_name, const std::string& log_path,
+		const std::string& debug_log_name) {
+	log_inner::InitPath(subsystem_name.c_str(), log_path.c_str(), NULL, debug_log_name.c_str());
 	log_inner::InitLogInner();
 }
 
-void InitLogWithLogName(const char* subsystem_name, const char* log_path,
-		const char* sys_log_name, const char* debug_log_name) {
-	log_inner::InitPath(subsystem_name, log_path, sys_log_name, debug_log_name);
+void InitLogWithLogName(const std::string& subsystem_name, const std::string& log_path,
+		const std::string& sys_log_name, const std::string& debug_log_name) {
+	log_inner::InitPath(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str(), debug_log_name.c_str());
 	log_inner::InitLogInner();
 }
 /*
@@ -270,7 +271,7 @@ void LogToSystem(SeverityLevel sl, const char* format, ...) {
 	BOOST_LOG_SEV(log_inner::system_logger, sl) << pBuffer;
 }
 
-typedef std::shared_ptr<src::severity_logger_mt<SeverityLevel>> Logger;
+typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel>> Logger;
 /*
  * Log api for multiple file
  * @file_name: log file name
@@ -278,9 +279,9 @@ typedef std::shared_ptr<src::severity_logger_mt<SeverityLevel>> Logger;
  * @RETURN: logger object or null shared_ptr.
  */
 Logger SetLogName(std::string file_name) {
-	Logger multi_logger = std::make_shared<
+	Logger multi_logger = boost::make_shared<
 			src::severity_logger_mt<SeverityLevel> >();
-	if (!multi_logger) {
+	if(multi_logger != boost::shared_ptr<src::severity_logger_mt<SeverityLevel> >()) {
 		multi_logger->add_attribute(log_inner::FILE_ID_FLAG_STRING,
 				attrs::constant < std::string > (file_name));
 		multi_logger->add_attribute(log_inner::TYPE_FLAG_STRING,
@@ -303,6 +304,7 @@ void LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
 	va_start(args, format);
 	vsprintf(pBuffer, format, args);
 	BOOST_LOG_SEV(*multi_logger, sl) << pBuffer;
+	log_inner::multiple_file_sink->flush();
 }
 
 /*

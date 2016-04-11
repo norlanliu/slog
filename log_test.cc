@@ -9,6 +9,7 @@
 #include <type_traits>
 #include "slogger.hpp"
 
+
 using namespace slog;
 
 void TestLogSystem() {
