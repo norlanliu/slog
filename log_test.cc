@@ -60,7 +60,7 @@ void TestMultipleThreads() {
 
 int main(int, char*[]) {
 	try{
-		InitLogWithLogName("Test", "////hehe///test_dir", "system", "debug");
+		InitLogWithLogName("Test", "hehe///test_dir", "system", "debug");
 	}catch(slog::filesystem::filesystem_error& error) {
 		std::cout<<error.what()<<std::endl;
 		return -1;
