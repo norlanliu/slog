@@ -1,16 +1,9 @@
-/*
- * log_test.cpp
- *
- *  Created on: 2016/3/7
- *      Author: Liu Qi
- */
 #ifndef LOG_LIBRARY_H_
 #define LOG_LIBRARY_H_
 
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include <boost/filesystem/path.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread/thread.hpp>
@@ -35,12 +28,25 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cerrno>
+#include <exception>
 
 #include <fstream>
 #include <string>
 #include <memory>
 
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#elif _LINUX
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 namespace slog {
+
 
 namespace logging = boost::log;
 namespace attrs = boost::log::attributes;
@@ -48,22 +54,53 @@ namespace src = boost::log::sources;
 namespace sinks = boost::log::sinks;
 namespace expr = boost::log::expressions;
 namespace keywords = boost::log::keywords;
+namespace filesystem = boost::filesystem;
 
 enum SeverityLevel {
-	TRACE, DEBUG, INFO, WARNING, ERROR, FATAL,
+	TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, UNDEFINED
 };
 // The formatting logic for the severity level
 template<typename CharT, typename TraitsT>
 inline std::basic_ostream<CharT, TraitsT>& operator<<(
 		std::basic_ostream<CharT, TraitsT>& strm, SeverityLevel lvl) {
 	static const char* const str[] = { "TRACE", "DEBUG", "INFO", "WARNING",
-			"ERROR", "FATAL" };
+			"ERROR", "FATAL", "UNDEFINED" };
 	if (static_cast<std::size_t>(lvl) < (sizeof(str) / sizeof(*str)))
 		strm << str[lvl];
 	else
 		strm << static_cast<int>(lvl);
 	return strm;
 }
+
+SeverityLevel StringToSeverity(const std::string& severity) {
+	if( severity == "TRACE" ) {
+		return TRACE;
+	} else if( severity == "DEBUG" ) {
+		return DEBUG;
+	} else if( severity == "INFO" ) {
+		return INFO;
+	} else if( severity == "WARNING" ) {
+		return WARNING;
+	} else if( severity == "ERROR" ) {
+		return ERROR;
+	} else if( severity == "FATAL" ) {
+		return FATAL;
+	} else {
+		return UNDEFINED;
+	}
+}
+
+class PermissionException : public std::exception {
+	virtual const char* what() const throw() {
+		return "Permission Denied Exception";
+	}
+};
+
+class UnknownException : public std::exception {
+	virtual const char* what() const throw() {
+		return "Unknown Exception";
+	}
+};
 
 namespace log_inner {
 
@@ -78,6 +115,7 @@ const char* SEVERITY_FLAG_STRING = "Severity";
 const char* LOG_FILE_EXTENSION = ".log";
 
 const char* FILE_ID_FLAG_STRING = "JobID";
+
 typedef sinks::synchronous_sink<sinks::text_multifile_backend> mb_sink_t;
 boost::shared_ptr<mb_sink_t> multiple_file_sink;
 
@@ -93,8 +131,15 @@ std::string system_path = "";
 
 std::string g_subsystem_name = "";
 
+bool CheckPathLegal(const char* path) {
+	return filesystem::create_directories(path);
+}
+
 void InitPath(const char* subsystem_name, const char* path,
 		const char* sys_log_name = NULL, const char* debug_log_name = NULL) {
+	if(!CheckPathLegal(path)) {
+		return;
+	}
 	g_subsystem_name = std::string(subsystem_name);
 
 	if (debug_log_name == NULL) {
@@ -207,7 +252,7 @@ void InitSources() {
 
 void InitLogInner() {
 	//BOOST bugs for Boost::Filesystem
-	boost::filesystem::path::imbue(std::locale("C"));
+	filesystem::path::imbue(std::locale("C"));
 	InitSources();
 	InitGlobalAttributes();
 	InitSinks();
@@ -271,7 +316,7 @@ void LogToSystem(SeverityLevel sl, const char* format, ...) {
 	BOOST_LOG_SEV(log_inner::system_logger, sl) << pBuffer;
 }
 
-typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel>> Logger;
+typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel> > Logger;
 /*
  * Log api for multiple file
  * @file_name: log file name
