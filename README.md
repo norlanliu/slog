@@ -1,8 +1,7 @@
 # slog
-Simplify C++ Log Library based on Boost Log library.
+A simplify C++ Log Library based on Boost Log library.
 
 ## Interfaces
----
 ### Log Initialization API
 ```c
 int InitLog(const std::string& subsystem_name, const std::string& log_path);
@@ -36,14 +35,13 @@ __Parameters__
 __Return Value__
 
 0 : *success*.
+
 -1 : *failed*.
 
 ## Usage
----
 Just copy the __slogger.hpp__ to your project include directory.
 
 ## Requirements
----
 
 |Libraries| Versions|
 |-------- |--------:|
@@ -54,7 +52,6 @@ Just copy the __slogger.hpp__ to your project include directory.
 Comple Parametes: `-DBOOST_LOG_DYN_LINK -lboost_log -lboost_system -lboost_thread  -lboost_filesystem`
 
 ## Test
----
 ```bash
 mkdir build
 cd build
@@ -66,7 +63,6 @@ make test
 ```
 
 ## Sample
----
 ```c++
 #include "slogger.hpp"
 
