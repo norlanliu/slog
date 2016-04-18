@@ -33,6 +33,7 @@
 #include <exception>
 
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <memory>
 
@@ -91,12 +92,6 @@ SeverityLevel StringToSeverity(const std::string& severity) {
 	}
 }
 
-class uninitialized_error: public std::exception {
-	virtual const char* what() const throw(){
-		return "Uninitialized log exception";
-	}
-} uninitialized_error;
-
 namespace log_inner {
 
 const int BUFF_SIZE = 512;
@@ -107,8 +102,9 @@ const char* TIMESTAMP_FLAG_STRING = "TimeStamp";
 const char* SCOPES_FLAG_STRING = "Scopes";
 const char* SEVERITY_FLAG_STRING = "Severity";
 
-const char* LOG_FILE_EXTENSION = ".log";
 const char* FILE_ID_FLAG_STRING = "JobID";
+
+const char* UNINITIALIZED_ERROR_MESSAGE = "Error: Uninitialized log.";
 
 class SLogger {
 private:
@@ -198,8 +194,8 @@ private:
 			system_path = sys_log_name;
 		}
 		log_path = std::string(path) + "/";
-		debug_path = log_path + debug_path + LOG_FILE_EXTENSION;
-		system_path = log_path + system_path + LOG_FILE_EXTENSION;
+		debug_path = log_path + debug_path;
+		system_path = log_path + system_path;
 
 	}
 
@@ -313,33 +309,58 @@ SLogger* slogger = NULL;
  * @log_path : path of log files
  * @subsystem_name: name of module
  */
-void InitLog(const std::string& subsystem_name, const std::string& log_path) {
+int InitLog(const std::string& subsystem_name, const std::string& log_path) {
 	//BOOST bugs for Boost::Filesystem
-	log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str());
+	try {
+		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str());
+	} catch (filesystem::filesystem_error& error) {
+		std::cerr<<error.what()<<std::endl;
+		return -1;
+	}
+	return 0;
 }
 
-void InitLogWithSyslogName(const std::string& subsystem_name, const std::string& log_path,
+int InitLogWithSyslogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& sys_log_name) {
-	log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str());
+	try {
+		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str());
+	} catch (filesystem::filesystem_error& error) {
+		std::cerr<<error.what()<<std::endl;
+		return -1;
+	}
+	return 0;
 }
 
-void InitLogWithDebugLogName(const std::string& subsystem_name, const std::string& log_path,
+int InitLogWithDebugLogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& debug_log_name) {
-	log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), NULL, debug_log_name.c_str());
+	try {
+		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), NULL, debug_log_name.c_str());
+	} catch (filesystem::filesystem_error& error) {
+		std::cerr<<error.what()<<std::endl;
+		return -1;
+	}
+	return 0;
 }
 
-void InitLogWithLogName(const std::string& subsystem_name, const std::string& log_path,
+int InitLogWithLogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& sys_log_name, const std::string& debug_log_name) {
-	log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str(), debug_log_name.c_str());
+	try {
+		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str(), debug_log_name.c_str());
+	} catch (filesystem::filesystem_error& error) {
+		std::cerr<<error.what()<<std::endl;
+		return -1;
+	}
+	return 0;
 }
 /*
  * Log api for debugging
  * @sl : severity level.
  * @message: log message.
  */
-void LogToDebug(SeverityLevel sl, const char* format, ...) {
+int LogToDebug(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitialized_error;
+		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
+		return -1;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
@@ -347,6 +368,7 @@ void LogToDebug(SeverityLevel sl, const char* format, ...) {
 	va_start(args, format);
 	vsprintf(pBuffer, format, args);
 	BOOST_LOG_SEV(log_inner::slogger->debug_logger, sl) << pBuffer;
+	return 0;
 }
 
 /*
@@ -354,9 +376,10 @@ void LogToDebug(SeverityLevel sl, const char* format, ...) {
  * @sl : severity level.
  * @message: log message.
  */
-void LogToSystem(SeverityLevel sl, const char* format, ...) {
+int LogToSystem(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitialized_error;
+		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
+		return -1;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
@@ -364,6 +387,7 @@ void LogToSystem(SeverityLevel sl, const char* format, ...) {
 	va_start(args, format);
 	vsprintf(pBuffer, format, args);
 	BOOST_LOG_SEV(log_inner::slogger->system_logger, sl) << pBuffer;
+	return 0;
 }
 
 typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel> > Logger;
@@ -375,7 +399,8 @@ typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel> > Logger;
  */
 Logger SetLogName(std::string file_name) {
 	if(log_inner::slogger == NULL) {
-		throw uninitialized_error;
+		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
+		return Logger();
 	}
 	Logger multi_logger = boost::make_shared<
 			src::severity_logger_mt<SeverityLevel> >();
@@ -395,9 +420,14 @@ Logger SetLogName(std::string file_name) {
  * @format: format string.
  * @variadic params
  */
-void LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
+int LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitialized_error;
+		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
+		return -1;
+	}
+	if(!multi_logger) {
+		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
+		return -1;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
@@ -405,6 +435,7 @@ void LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
 	va_start(args, format);
 	vsprintf(pBuffer, format, args);
 	BOOST_LOG_SEV(*multi_logger, sl) << pBuffer;
+	return 0;
 }
 
 }

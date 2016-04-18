@@ -7,8 +7,7 @@
 #include <thread>
 #include <vector>
 #include <type_traits>
-#include "slogger.hpp"
-
+#include "../include/slogger.hpp"
 
 using namespace slog;
 
@@ -29,17 +28,13 @@ void TestLogDebug() {
 }
 
 void LogFunc(std::string file_name) {
-	LogToSystem(TRACE, "A trace severity message %s", file_name.c_str());
-	LogToSystem(INFO, "A INFO severity message %s", file_name.c_str());
-	LogToSystem(DEBUG, "A DEBUG severity message %s", file_name.c_str());
-	LogToSystem(WARNING, "A WARNING severity message %s", file_name.c_str());
-	LogToSystem(ERROR, "A ERROR severity message %s", file_name.c_str());
-
 	Logger log = SetLogName(file_name);
-	LogToFile(log, TRACE, "A trace severity message %s", file_name.c_str());
-	LogToFile(log, INFO, "A INFO severity message %s", file_name.c_str());
-	LogToFile(log, DEBUG, "A DEBUG severity message %s", file_name.c_str());
-	LogToFile(log, WARNING, "A WARNING severity message %s", file_name.c_str());
+	if(log) {
+		LogToFile(log, TRACE, "A trace severity message %s", file_name.c_str());
+		LogToFile(log, INFO, "A INFO severity message %s", file_name.c_str());
+		LogToFile(log, DEBUG, "A DEBUG severity message %s", file_name.c_str());
+		LogToFile(log, WARNING, "A WARNING severity message %s", file_name.c_str());
+	}
 }
 
 void TestMultipleThreads() {
@@ -59,16 +54,14 @@ void TestMultipleThreads() {
 }
 
 int main(int, char*[]) {
-	try{
-		InitLogWithLogName("Test", "hehe///test_dir", "system", "debug");
-	}catch(slog::filesystem::filesystem_error& error) {
-		std::cout<<error.what()<<std::endl;
+	int success = InitLogWithLogName("Test", "hehe///test_dir", "system", "debug");
+	if(success != 0) {
+		std::cerr<<"Initialzed log error"<<std::endl;
 		return -1;
 	}
 	TestLogSystem();
 	TestLogDebug();
 	TestMultipleThreads();
-
 	return 0;
 }
 
