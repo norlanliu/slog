@@ -91,11 +91,11 @@ SeverityLevel StringToSeverity(const std::string& severity) {
 	}
 }
 
-class UninitializedException: public std::exception {
+class uninitialized_error: public std::exception {
 	virtual const char* what() const throw(){
 		return "Uninitialized log exception";
 	}
-} uninitializedException;
+} uninitialized_error;
 
 namespace log_inner {
 
@@ -304,7 +304,6 @@ SLogger::Garbo SLogger::garbo;
 
 SLogger* slogger = NULL;
 
-
 }
 
 
@@ -340,7 +339,7 @@ void InitLogWithLogName(const std::string& subsystem_name, const std::string& lo
  */
 void LogToDebug(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitializedException;
+		throw uninitialized_error;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
@@ -357,7 +356,7 @@ void LogToDebug(SeverityLevel sl, const char* format, ...) {
  */
 void LogToSystem(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitializedException;
+		throw uninitialized_error;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
@@ -376,7 +375,7 @@ typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel> > Logger;
  */
 Logger SetLogName(std::string file_name) {
 	if(log_inner::slogger == NULL) {
-		throw uninitializedException;
+		throw uninitialized_error;
 	}
 	Logger multi_logger = boost::make_shared<
 			src::severity_logger_mt<SeverityLevel> >();
@@ -398,7 +397,7 @@ Logger SetLogName(std::string file_name) {
  */
 void LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
-		throw uninitializedException;
+		throw uninitialized_error;
 	}
 	char buffer[log_inner::BUFF_SIZE];
 	char* pBuffer = buffer;
