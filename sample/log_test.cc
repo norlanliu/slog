@@ -54,7 +54,7 @@ void TestMultipleThreads() {
 }
 
 int main(int, char*[]) {
-	int success = InitLogWithLogName("Test", "hehe///test_dir", "system", "debug");
+	int success = InitLogWithLogName("Test", "test_dir", "system", "debug");
 	if(success != 0) {
 		std::cerr<<"Initialzed log error"<<std::endl;
 		return -1;

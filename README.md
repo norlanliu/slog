@@ -18,8 +18,10 @@ __Parameters__
 __Return Value__
 
 0 : *success*.
+
 -1 : *failed*.
 
+### Log API
 ```c
 int LogToSystem(slog::Severity severity, const char* format, ...);
 ```
@@ -74,7 +76,7 @@ void TestLogSystem() {
 	slog::LogToSystem(slog::ERROR, "A system ERROR severity message %d", 670);
 }
 int main(int, char*[]) {
-	int success = InitLogWithLogName("Test", "hehe///test_dir", "system", "debug");
+	int success = InitLogWithLogName("Test", "test_dir", "system", "debug");
 	if(success != 0) {
 		std::cerr<<"Initialzed log error"<<std::endl;
 		return -1;
