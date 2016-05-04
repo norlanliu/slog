@@ -95,7 +95,7 @@ SeverityLevel StringToSeverity(const std::string& severity) {
 
 namespace log_inner {
 
-const int BUFF_SIZE = 512;
+const int BUFF_SIZE = 1024;
 
 const char* MODULE_FLAG_STRING = "Module";
 const char* TYPE_FLAG_STRING = "Type";
@@ -241,7 +241,7 @@ private:
 		boost::shared_ptr < logging::core > core = logging::core::get();
 
 		logging::formatter debug_formatter(
-				expr::format("%1% %2% %3% %4% %5%") 
+				expr::format("%1%\t%2%\t%3%\t%4%\t%5%") 
 					% expr::format_date_time< boost::posix_time::ptime>
 					(TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S")
 					% expr::attr< std::string > (MODULE_FLAG_STRING) 
@@ -253,10 +253,13 @@ private:
 		typedef sinks::synchronous_sink<sinks::text_file_backend> text_file_sink_t;
 
 		boost::shared_ptr < sinks::text_file_backend > debug_text_backend =
-				boost::make_shared < sinks::text_file_backend
-						> (keywords::file_name = debug_path, keywords::auto_flush =
-								true, keywords::open_mode = (std::ios::out
-								| std::ios::app));
+				boost::make_shared <sinks::text_file_backend> (
+						keywords::file_name = debug_path+"_%Y%m%d_%N",
+						keywords::rotation_size = 10 * 1024 * 1024,
+						keywords::time_based_rotation = sinks::file::rotation_at_time_point(0, 0, 1),
+						keywords::auto_flush = true,
+						keywords::open_mode = (std::ios::out | std::ios::app)
+					);
 
 		boost::shared_ptr<text_file_sink_t> debug_text_sink(
 				new text_file_sink_t(debug_text_backend));
@@ -273,17 +276,21 @@ private:
 
 		//init sys file sink
 		logging::formatter system_formatter(
-				expr::format("%1% %2% %3% %4%") % expr::format_date_time
-						< boost::posix_time::ptime
-						> (TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S") % expr::attr
-						< std::string > (MODULE_FLAG_STRING) % expr::attr
-						< SeverityLevel > (SEVERITY_FLAG_STRING) % expr::smessage);
+				expr::format("%1%\t%2%\t%3%\t%4%") 
+					% expr::format_date_time< boost::posix_time::ptime>
+					(TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S")
+					% expr::attr< std::string > (MODULE_FLAG_STRING) 
+					% expr::attr< SeverityLevel	> (SEVERITY_FLAG_STRING)
+					% expr::smessage);
 
 		boost::shared_ptr < sinks::text_file_backend > system_text_backend =
-				boost::make_shared < sinks::text_file_backend
-						> (keywords::file_name = system_path, keywords::auto_flush =
-								true, keywords::open_mode = (std::ios::out
-								| std::ios::app));
+				boost::make_shared < sinks::text_file_backend> (
+						keywords::file_name = system_path+"_%Y%m%d_%N",
+						keywords::rotation_size = 10 * 1024 * 1024,
+						keywords::time_based_rotation = sinks::file::rotation_at_time_point(0, 0, 1),
+						keywords::auto_flush = true,
+						keywords::open_mode = (std::ios::out | std::ios::app)
+						);
 
 		boost::shared_ptr<text_file_sink_t> system_text_sink(
 				new text_file_sink_t(system_text_backend));
@@ -299,8 +306,8 @@ private:
 		// Set up the file naming pattern
 		multiple_file_backend->set_file_name_composer(
 				sinks::file::as_file_name_composer(
-						expr::stream << log_path << expr::attr < std::string
-								> (FILE_ID_FLAG_STRING) ));
+						expr::stream << log_path <<
+						expr::attr < std::string> (FILE_ID_FLAG_STRING)));
 
 		// Wrap it into the frontend and register in the core.
 		// The backend requires synchronization in the frontend.
