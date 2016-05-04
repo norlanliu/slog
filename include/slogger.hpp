@@ -30,6 +30,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cerrno>
+#include <cstring>
 #include <exception>
 
 #include <fstream>
@@ -132,7 +133,9 @@ public:
 	static SLogger* GetInstance(const char* subsystem_name = "", const char* path = ".",
 			const char* sys_log_name = NULL, const char* debug_log_name = NULL) {
 		boost::mutex::scoped_lock lock(mu);
-		if(instance == NULL) {
+		if(!CheckPathLegal(path)) {
+			return NULL;
+		}else if(instance == NULL) {
 			instance = new SLogger(subsystem_name, path, sys_log_name, debug_log_name);
 		}
 		return instance;
@@ -155,7 +158,7 @@ private:
 
 	std::string system_path;
 
-	std::string g_subsystem_name;
+	std::string subsystem_name;
 
 private:
 	void InitLog() {
@@ -166,30 +169,57 @@ private:
 		InitSinks();
 	}
 
-	bool CheckPathLegal(const char* path) {
-		return filesystem::create_directories(path);
+	static std::string GenerateRandomString(int length) {
+		static const char alphanum[] =
+			"0123456789"
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			"abcdefghijklmnopqrstuvwxyz";
+
+		std::string random_string(length, 0);
+		for (int i = 0; i < length; ++i) {
+			random_string[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+		}
+		return random_string;
+	}
+
+	static bool CheckPathLegal(const char* path) {
+		filesystem::file_status status = filesystem::status(path);
+		if(status.type() != filesystem::status_unknown 
+				&& status.type() != filesystem::file_not_found
+				&& status.type() == filesystem::directory_file) {
+			std::string rand_file_name = GenerateRandomString(16);
+			rand_file_name = std::string(path) + "/" + rand_file_name;
+			FILE* file = fopen(rand_file_name.c_str(), "w");
+			if(file == NULL) {
+				std::cerr<<strerror(errno)<<std::endl;
+				return false;
+			}else{
+				fclose(file);
+				remove(rand_file_name.c_str());
+				return true;
+			}
+		}else{
+			return filesystem::create_directories(path);
+		}
 	}
 
 	void InitPath(const char* subsystem_name, const char* path,
 			const char* sys_log_name , const char* debug_log_name) {
-		if(!CheckPathLegal(path)) {
-			return;
-		}
 		debug_path = "_DEBUG";
 
 		system_path = "";
 
-		g_subsystem_name = "";
+		this->subsystem_name = "";
 
-		g_subsystem_name = std::string(subsystem_name);
+		this->subsystem_name = std::string(subsystem_name);
 
 		if (debug_log_name == NULL) {
-			debug_path = g_subsystem_name + debug_path;
+			debug_path = this->subsystem_name + debug_path;
 		} else {
 			debug_path = debug_log_name;
 		}
 		if (sys_log_name == NULL) {
-			system_path = g_subsystem_name;
+			system_path = this->subsystem_name;
 		} else {
 			system_path = sys_log_name;
 		}
@@ -204,22 +234,21 @@ private:
 		boost::shared_ptr < logging::core > core = logging::core::get();
 		core->add_global_attribute(SCOPES_FLAG_STRING, attrs::named_scope());
 		core->add_global_attribute(MODULE_FLAG_STRING,
-				attrs::constant < std::string > (g_subsystem_name));
+				attrs::constant < std::string > (subsystem_name));
 	}
 
 	void InitSinks() {
 		boost::shared_ptr < logging::core > core = logging::core::get();
 
 		logging::formatter debug_formatter(
-				expr::format("[%1%]<%2%> %3%  %4%: %5%") % expr::format_date_time
-						< boost::posix_time::ptime
-						> (TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S") % expr::attr
-						< std::string > (MODULE_FLAG_STRING) % expr::attr
-						< SeverityLevel
-						> (SEVERITY_FLAG_STRING)
-								% expr::format_named_scope(SCOPES_FLAG_STRING,
-										keywords::format = "%n %f:%l")
-								% expr::smessage);
+				expr::format("%1% %2% %3% %4% %5%") 
+					% expr::format_date_time< boost::posix_time::ptime>
+					(TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S")
+					% expr::attr< std::string > (MODULE_FLAG_STRING) 
+					% expr::attr< SeverityLevel	> (SEVERITY_FLAG_STRING)
+					% expr::format_named_scope(SCOPES_FLAG_STRING,
+							keywords::format = "%n %f:%l")
+					% expr::smessage);
 		//init debug file sink
 		typedef sinks::synchronous_sink<sinks::text_file_backend> text_file_sink_t;
 
@@ -244,7 +273,7 @@ private:
 
 		//init sys file sink
 		logging::formatter system_formatter(
-				expr::format("[%1%]<%2%> %3%: %4%") % expr::format_date_time
+				expr::format("%1% %2% %3% %4%") % expr::format_date_time
 						< boost::posix_time::ptime
 						> (TIMESTAMP_FLAG_STRING, "%Y-%m-%d %H:%M:%S") % expr::attr
 						< std::string > (MODULE_FLAG_STRING) % expr::attr
@@ -313,6 +342,9 @@ int InitLog(const std::string& subsystem_name, const std::string& log_path) {
 	//BOOST bugs for Boost::Filesystem
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str());
+		if(log_inner::slogger == NULL){
+			return -1;
+		}
 	} catch (filesystem::filesystem_error& error) {
 		std::cerr<<error.what()<<std::endl;
 		return -1;
@@ -324,6 +356,9 @@ int InitLogWithSyslogName(const std::string& subsystem_name, const std::string& 
 		const std::string& sys_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str());
+		if(log_inner::slogger == NULL){
+			return -1;
+		}
 	} catch (filesystem::filesystem_error& error) {
 		std::cerr<<error.what()<<std::endl;
 		return -1;
@@ -335,6 +370,9 @@ int InitLogWithDebugLogName(const std::string& subsystem_name, const std::string
 		const std::string& debug_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), NULL, debug_log_name.c_str());
+		if(log_inner::slogger == NULL){
+			return -1;
+		}
 	} catch (filesystem::filesystem_error& error) {
 		std::cerr<<error.what()<<std::endl;
 		return -1;
@@ -346,6 +384,9 @@ int InitLogWithLogName(const std::string& subsystem_name, const std::string& log
 		const std::string& sys_log_name, const std::string& debug_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str(), debug_log_name.c_str());
+		if(log_inner::slogger == NULL){
+			return -1;
+		}
 	} catch (filesystem::filesystem_error& error) {
 		std::cerr<<error.what()<<std::endl;
 		return -1;
