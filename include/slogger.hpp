@@ -75,7 +75,7 @@ inline std::basic_ostream<CharT, TraitsT>& operator<<(
 	return strm;
 }
 
-SeverityLevel StringToSeverity(const std::string& severity) {
+inline SeverityLevel StringToSeverity(const std::string& severity) {
 	if( severity == "TRACE" ) {
 		return TRACE;
 	} else if( severity == "DEBUG" ) {
@@ -254,9 +254,7 @@ private:
 
 		boost::shared_ptr < sinks::text_file_backend > debug_text_backend =
 				boost::make_shared <sinks::text_file_backend> (
-						keywords::file_name = debug_path+"_%Y%m%d_%N",
-						keywords::rotation_size = 10 * 1024 * 1024,
-						keywords::time_based_rotation = sinks::file::rotation_at_time_point(0, 0, 1),
+						keywords::file_name = debug_path,
 						keywords::auto_flush = true,
 						keywords::open_mode = (std::ios::out | std::ios::app)
 					);
@@ -345,7 +343,7 @@ SLogger* slogger = NULL;
  * @log_path : path of log files
  * @subsystem_name: name of module
  */
-int InitLog(const std::string& subsystem_name, const std::string& log_path) {
+inline int InitLog(const std::string& subsystem_name, const std::string& log_path) {
 	//BOOST bugs for Boost::Filesystem
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str());
@@ -359,7 +357,7 @@ int InitLog(const std::string& subsystem_name, const std::string& log_path) {
 	return 0;
 }
 
-int InitLogWithSyslogName(const std::string& subsystem_name, const std::string& log_path,
+inline int InitLogWithSyslogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& sys_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str());
@@ -373,7 +371,7 @@ int InitLogWithSyslogName(const std::string& subsystem_name, const std::string& 
 	return 0;
 }
 
-int InitLogWithDebugLogName(const std::string& subsystem_name, const std::string& log_path,
+inline int InitLogWithDebugLogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& debug_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), NULL, debug_log_name.c_str());
@@ -387,7 +385,7 @@ int InitLogWithDebugLogName(const std::string& subsystem_name, const std::string
 	return 0;
 }
 
-int InitLogWithLogName(const std::string& subsystem_name, const std::string& log_path,
+inline int InitLogWithLogName(const std::string& subsystem_name, const std::string& log_path,
 		const std::string& sys_log_name, const std::string& debug_log_name) {
 	try {
 		log_inner::slogger = log_inner::SLogger::GetInstance(subsystem_name.c_str(), log_path.c_str(), sys_log_name.c_str(), debug_log_name.c_str());
@@ -405,7 +403,7 @@ int InitLogWithLogName(const std::string& subsystem_name, const std::string& log
  * @sl : severity level.
  * @message: log message.
  */
-int LogToDebug(SeverityLevel sl, const char* format, ...) {
+inline int LogToDebug(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
 		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
 		return -1;
@@ -424,7 +422,7 @@ int LogToDebug(SeverityLevel sl, const char* format, ...) {
  * @sl : severity level.
  * @message: log message.
  */
-int LogToSystem(SeverityLevel sl, const char* format, ...) {
+inline int LogToSystem(SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
 		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
 		return -1;
@@ -445,7 +443,7 @@ typedef boost::shared_ptr<src::severity_logger_mt<SeverityLevel> > Logger;
  *
  * @RETURN: logger object or null shared_ptr.
  */
-Logger SetLogName(std::string file_name) {
+inline Logger SetLogName(std::string file_name) {
 	if(log_inner::slogger == NULL) {
 		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
 		return Logger();
@@ -468,7 +466,7 @@ Logger SetLogName(std::string file_name) {
  * @format: format string.
  * @variadic params
  */
-int LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
+inline int LogToFile(Logger multi_logger, SeverityLevel sl, const char* format, ...) {
 	if(log_inner::slogger == NULL) {
 		std::cerr<<log_inner::UNINITIALIZED_ERROR_MESSAGE<<std::endl;
 		return -1;

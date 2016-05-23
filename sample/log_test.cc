@@ -37,6 +37,15 @@ void LogFunc(std::string file_name) {
 	}
 }
 
+void TestSystemRotation() {
+	boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	LogToSystem(TRACE, "A system trace severity message %d", 666);
+	LogToSystem(INFO, "A system INFO severity message %d", 667);
+	LogToSystem(DEBUG, "A system DEBUG severity message %d", 668);
+	LogToSystem(WARNING, "A system WARNING severity message %d", 669);
+	LogToSystem(ERROR, "A system ERROR severity message %d", 670);
+}
+
 void TestMultipleThreads() {
 	const int num_threads = 5;
 	std::vector<std::thread> threads;
@@ -62,6 +71,7 @@ int main(int, char*[]) {
 	TestLogSystem();
 	TestLogDebug();
 	TestMultipleThreads();
+	TestSystemRotation();
 	return 0;
 }
 

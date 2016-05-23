@@ -5,6 +5,11 @@
 #include <vector>
 #include <type_traits>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+
 #include "slogger.hpp"
 #include "gtest/gtest.h"
 using namespace slog;
@@ -15,23 +20,40 @@ const std::string debug_log_name = "debug";
 const std::string log_file_name = "particular.log";
 const std::string log_file_prefix = "log";
 
+const char* ROTATE_FILE_NAME_FORMAT = "_%Y%m%d_";
+
 class CorrectnessTest : public testing::Test {
 	protected:
 		static void SetUpTestCase() {
+			filesystem::path log_path(log_dir);
+			if(boost::filesystem::exists(log_path)) {
+				boost::filesystem::remove_all(log_path);
+			}
 			ASSERT_EQ(0, InitLogWithLogName("Test", log_dir, system_log_name, debug_log_name));
 		}
-		static void TearDownTestCase(){
+		static void TearDownTestCase() {
+			filesystem::path log_path(log_dir);
+			if(boost::filesystem::exists(log_path)) {
+				boost::filesystem::remove_all(log_path);
+			}
 		}
 };
 
 TEST_F(CorrectnessTest, SystemLog) {
+	boost::gregorian::date current_date(boost::gregorian::day_clock::local_day());
+
 	ASSERT_EQ(0, LogToSystem(TRACE, "A system trace severity message %d", 666));
 	ASSERT_EQ(0, LogToSystem(INFO, "A system INFO severity message %d", 667));
 	ASSERT_EQ(0, LogToSystem(DEBUG, "A system DEBUG severity message %d", 668));
 	ASSERT_EQ(0, LogToSystem(WARNING, "A system WARNING severity message %d", 669));
 	ASSERT_EQ(0, LogToSystem(ERROR, "A system ERROR severity message %d", 670));
 
-	std::ifstream file(log_dir + "/" + system_log_name);
+	std::stringstream stream;
+	stream.imbue(std::locale(std::locale::classic(), new boost::gregorian::date_facet(ROTATE_FILE_NAME_FORMAT)));
+	stream << current_date;
+	std::string log_file_name = log_dir + "/" + system_log_name + stream.str() + boost::lexical_cast<std::string>(0);
+	std::ifstream file(log_file_name);
+
 	ASSERT_TRUE(file.good());
 	int lines = std::count(std::istreambuf_iterator<char>(file), 
 			             std::istreambuf_iterator<char>(), '\n');

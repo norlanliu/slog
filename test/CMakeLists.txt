@@ -48,6 +48,9 @@ target_link_libraries (test_slogger
 ${BOOST_LOG_LIBRARY})
 target_link_libraries (test_slogger
 gtest)
+find_library (BOOST_DATE_TIME_LIBRARY boost_date_time)
+target_link_libraries (test_slogger
+${BOOST_DATE_TIME_LIBRARY})
 
 target_link_libraries (test_initialization
 ${BOOST_THREAD_LIBRARY})
